@@ -315,6 +315,41 @@ textarea.f-input{min-height:75px;resize:vertical}
 .c-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0;box-shadow:var(--shadow-sm)}
 .c-swatch.sel{border-color:var(--text);transform:scale(1.15);box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .sf-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)}
+
+/* Workspace bar */
+.ws-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px 16px;margin-bottom:18px;box-shadow:var(--shadow-xs)}
+.ws-left{display:flex;align-items:center;gap:9px}
+.ws-icon{width:30px;height:30px;background:var(--blue2);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ws-icon svg{width:14px;height:14px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round}
+.ws-info{}
+.ws-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:1px}
+.ws-code{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.04em;font-family:'Inter',monospace}
+.ws-change{font-size:12px;font-weight:500;color:var(--purple);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+.ws-status{font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px}
+.ws-dot{width:6px;height:6px;border-radius:50%;background:var(--border2)}
+.ws-dot.synced{background:#22c55e}
+.ws-dot.syncing{background:var(--gold2);animation:pulse-ws .8s ease-in-out infinite}
+.ws-dot.error{background:var(--red)}
+@keyframes pulse-ws{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* Workspace setup overlay */
+.ws-overlay{position:fixed;inset:0;background:rgba(17,16,24,.5);display:none;align-items:center;justify-content:center;z-index:600;padding:1rem;backdrop-filter:blur(6px)}
+.ws-overlay.open{display:flex}
+.ws-modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--rxl);padding:2rem;max-width:440px;width:100%;box-shadow:var(--shadow-lg);animation:fadeUp .2s ease}
+.ws-modal h2{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.04em;margin-bottom:8px}
+.ws-modal p{font-size:13px;color:var(--text2);margin-bottom:1.5rem;line-height:1.6}
+.ws-options{display:flex;flex-direction:column;gap:10px;margin-bottom:1.5rem}
+.ws-option{background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px 16px;cursor:pointer;transition:all .15s}
+.ws-option:hover{border-color:var(--purple);background:var(--purple4)}
+.ws-option.selected{border-color:var(--purple);background:var(--purple4)}
+.ws-option-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.ws-option-desc{font-size:12px;color:var(--text3)}
+.ws-input-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:1.25rem}
+.ws-input-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)}
+.ws-input{font-family:'Inter',monospace;font-size:14px;font-weight:600;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;outline:none;transition:all .15s;width:100%;letter-spacing:.06em;text-transform:uppercase}
+.ws-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,53,232,.1)}
+.ws-input::placeholder{text-transform:none;letter-spacing:0;font-weight:400;color:var(--text3)}
+.ws-footer{display:flex;gap:8px;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -587,6 +622,21 @@ textarea.f-input{min-height:75px;resize:vertical}
         </div>
         <h1 class="ph-title">Your <span class="hl-blue">preaching archive</span></h1>
         <p class="ph-desc">Log every message, track series and scriptures, build a searchable history of everything preached.</p>
+      </div>
+
+      <!-- Workspace bar -->
+      <div class="ws-bar" id="wsBar">
+        <div class="ws-left">
+          <div class="ws-icon"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14M8 8v9"/></svg></div>
+          <div class="ws-info">
+            <div class="ws-label">Workspace</div>
+            <div class="ws-code" id="wsCodeDisplay">—</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="ws-status"><div class="ws-dot" id="wsDot"></div><span id="wsStatusText">Not connected</span></div>
+          <button class="ws-change" onclick="openWsModal(true)">Change</button>
+        </div>
       </div>
 
       <div class="stats-row" id="trackerStats"></div>
@@ -920,40 +970,185 @@ function hideErr(barId) { document.getElementById(barId).classList.remove('vis')
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function esc(s) { return String(s||'').replace(/"/g,'&quot;'); }
 
-// TRACKER
-function loadSermons() { try { return JSON.parse(localStorage.getItem('ss_sermons') || '[]'); } catch { return []; } }
-function saveSermons(arr) { localStorage.setItem('ss_sermons', JSON.stringify(arr)); }
+// ═══ SUPABASE CONFIG ═══
+const SB_URL = 'https://lcgjiutmajlumdvyohlm.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjZ2ppdXRtYWpsdW1kdnlvaGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjY2ODEsImV4cCI6MjA5MjkwMjY4MX0.h1vBZZ6EggLoMt_NNz5ffDoqCt-IUWW7il0Yil6TG5Y';
+const SB_HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
+
+// ═══ WORKSPACE STATE ═══
+let workspaceId = localStorage.getItem('kairos_workspace') || '';
+let cachedSermons = [];
 let trackerView = 'list', activeFilter = null, editingId = null, selectedColor = '#6c47ff';
-function getSeriesMap() { const m = {}; loadSermons().forEach(s => { if (s.series && s.color) m[s.series] = s.color; }); return m; }
-function renderTracker() { renderStats(); renderFilters(); renderSeriesLegend(); renderSermonList(); }
+let wsOption = 'new';
+
+function generateWorkspaceId(name) {
+  const slug = (name || 'CHURCH').toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 15).replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `${slug}-${rand}`;
+}
+
+// ═══ WORKSPACE MODAL ═══
+function openWsModal(allowCancel) {
+  document.getElementById('wsOverlay').classList.add('open');
+  if (allowCancel) {
+    document.querySelector('.ws-modal .btn-cancel').style.display = '';
+  } else {
+    document.querySelector('.ws-modal .btn-cancel').style.display = 'none';
+  }
+  selectWsOption('new');
+}
+
+function closeWsModal() { document.getElementById('wsOverlay').classList.remove('open'); }
+
+function selectWsOption(opt) {
+  wsOption = opt;
+  document.getElementById('wsOptNew').classList.toggle('selected', opt === 'new');
+  document.getElementById('wsOptExisting').classList.toggle('selected', opt === 'existing');
+  document.getElementById('wsNewWrap').style.display = opt === 'new' ? '' : 'none';
+  document.getElementById('wsExistingWrap').style.display = opt === 'existing' ? '' : 'none';
+}
+
+async function confirmWorkspace() {
+  let id;
+  if (wsOption === 'new') {
+    const name = document.getElementById('wsNameInput').value.trim() || 'MY-CHURCH';
+    id = generateWorkspaceId(name);
+  } else {
+    id = document.getElementById('wsCodeInput').value.trim().toUpperCase();
+    if (!id) { document.getElementById('wsCodeInput').focus(); return; }
+  }
+  workspaceId = id;
+  localStorage.setItem('kairos_workspace', id);
+  closeWsModal();
+  updateWsBar();
+  await fetchSermons();
+}
+
+document.getElementById('wsOverlay').addEventListener('click', e => { if (e.target === e.currentTarget && document.querySelector('.ws-modal .btn-cancel').style.display !== 'none') closeWsModal(); });
+
+function updateWsBar() {
+  document.getElementById('wsCodeDisplay').textContent = workspaceId || '—';
+}
+
+function setWsStatus(status) {
+  const dot = document.getElementById('wsDot');
+  const txt = document.getElementById('wsStatusText');
+  dot.className = 'ws-dot ' + status;
+  txt.textContent = status === 'synced' ? 'Synced' : status === 'syncing' ? 'Syncing…' : status === 'error' ? 'Sync error' : 'Not connected';
+}
+
+// ═══ SUPABASE CRUD ═══
+async function fetchSermons() {
+  if (!workspaceId) return;
+  setWsStatus('syncing');
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/sermons?workspace_id=eq.${encodeURIComponent(workspaceId)}&order=date.desc`, { headers: SB_HEADERS });
+    if (!res.ok) throw new Error(await res.text());
+    cachedSermons = await res.json();
+    setWsStatus('synced');
+    renderTracker();
+  } catch(e) {
+    console.error('Fetch error:', e);
+    setWsStatus('error');
+  }
+}
+
+async function insertSermon(entry) {
+  setWsStatus('syncing');
+  const res = await fetch(`${SB_URL}/rest/v1/sermons`, {
+    method: 'POST',
+    headers: { ...SB_HEADERS, 'Prefer': 'return=representation' },
+    body: JSON.stringify({ workspace_id: workspaceId, title: entry.title, date: entry.date || null, series: entry.series || null, scripture: entry.scripture || null, speaker: entry.speaker || null, tags: entry.tags || [], notes: entry.notes || null, color: entry.color })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const [row] = await res.json();
+  cachedSermons.unshift(row);
+  setWsStatus('synced');
+}
+
+async function updateSermon(id, entry) {
+  setWsStatus('syncing');
+  const res = await fetch(`${SB_URL}/rest/v1/sermons?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { ...SB_HEADERS, 'Prefer': 'return=representation' },
+    body: JSON.stringify({ title: entry.title, date: entry.date || null, series: entry.series || null, scripture: entry.scripture || null, speaker: entry.speaker || null, tags: entry.tags || [], notes: entry.notes || null, color: entry.color })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const [row] = await res.json();
+  const idx = cachedSermons.findIndex(s => s.id === id);
+  if (idx > -1) cachedSermons[idx] = row;
+  setWsStatus('synced');
+}
+
+async function deleteSermonDb(id) {
+  setWsStatus('syncing');
+  const res = await fetch(`${SB_URL}/rest/v1/sermons?id=eq.${id}`, { method: 'DELETE', headers: SB_HEADERS });
+  if (!res.ok) throw new Error(await res.text());
+  cachedSermons = cachedSermons.filter(s => s.id !== id);
+  setWsStatus('synced');
+}
+
+// ═══ RENDER ═══
+function getSeriesMap() { const m = {}; cachedSermons.forEach(s => { if (s.series && s.color) m[s.series] = s.color; }); return m; }
+
+function renderTracker() {
+  updateWsBar();
+  renderStats();
+  renderFilters();
+  renderSeriesLegend();
+  renderSermonList();
+}
+
 function renderStats() {
-  const s = loadSermons(), series = new Set(s.map(x=>x.series).filter(Boolean)), scriptures = new Set(s.map(x=>x.scripture).filter(Boolean));
+  const s = cachedSermons;
+  const series = new Set(s.map(x=>x.series).filter(Boolean));
+  const scriptures = new Set(s.map(x=>x.scripture).filter(Boolean));
   const ty = s.filter(x=>x.date&&x.date.startsWith(new Date().getFullYear().toString())).length;
-  document.getElementById('trackerStats').innerHTML = `<div class="stat-card"><div class="stat-label">Total sermons</div><div class="stat-value">${s.length}</div><div class="stat-sub">in library</div></div><div class="stat-card"><div class="stat-label">Series</div><div class="stat-value">${series.size}</div><div class="stat-sub">distinct series</div></div><div class="stat-card"><div class="stat-label">Scriptures</div><div class="stat-value">${scriptures.size}</div><div class="stat-sub">unique passages</div></div><div class="stat-card"><div class="stat-label">This year</div><div class="stat-value">${ty}</div><div class="stat-sub">in ${new Date().getFullYear()}</div></div>`;
+  document.getElementById('trackerStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total sermons</div><div class="stat-value">${s.length}</div><div class="stat-sub">in library</div></div>
+    <div class="stat-card"><div class="stat-label">Series</div><div class="stat-value">${series.size}</div><div class="stat-sub">distinct series</div></div>
+    <div class="stat-card"><div class="stat-label">Scriptures</div><div class="stat-value">${scriptures.size}</div><div class="stat-sub">unique passages</div></div>
+    <div class="stat-card"><div class="stat-label">This year</div><div class="stat-value">${ty}</div><div class="stat-sub">in ${new Date().getFullYear()}</div></div>`;
 }
+
 function renderFilters() {
-  const sm = getSeriesMap(), series = [...new Set(loadSermons().map(s=>s.series).filter(Boolean))];
-  document.getElementById('trackerFilters').innerHTML = series.map(s => { const c = sm[s]||'#6c47ff', on = activeFilter===s; return `<button class="fpill${on?' on':''}" style="${on?`color:${c};border-color:${c}60;background:${c}18`:''}" onclick="toggleFilter('${esc(s)}')">${escHtml(s)}</button>`; }).join('');
+  const sm = getSeriesMap(), series = [...new Set(cachedSermons.map(s=>s.series).filter(Boolean))];
+  document.getElementById('trackerFilters').innerHTML = series.map(s => { const c=sm[s]||'#6c47ff', on=activeFilter===s; return `<button class="fpill${on?' on':''}" style="${on?`color:${c};border-color:${c}60;background:${c}18`:''}" onclick="toggleFilter('${esc(s)}')">${escHtml(s)}</button>`; }).join('');
 }
-function renderSeriesLegend() { document.getElementById('seriesLegend').innerHTML = Object.entries(getSeriesMap()).map(([n,c])=>`<div class="l-item"><div class="l-dot" style="background:${c}"></div><span>${escHtml(n)}</span></div>`).join(''); }
+
+function renderSeriesLegend() {
+  document.getElementById('seriesLegend').innerHTML = Object.entries(getSeriesMap()).map(([n,c])=>`<div class="l-item"><div class="l-dot" style="background:${c}"></div><span>${escHtml(n)}</span></div>`).join('');
+}
+
 function renderSermonList() {
   const q = (document.getElementById('trackerSearch')?.value||'').toLowerCase();
-  let filtered = loadSermons().filter(s => { if (activeFilter&&s.series!==activeFilter) return false; if (q){const h=[s.title,s.series,s.scripture,s.speaker,s.notes,...(s.tags||[])].join(' ').toLowerCase();if(!h.includes(q))return false;} return true; }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  renderListView(filtered); renderGridView(filtered);
+  let filtered = cachedSermons.filter(s => {
+    if (activeFilter && s.series !== activeFilter) return false;
+    if (q) { const h=[s.title,s.series,s.scripture,s.speaker,s.notes,...(s.tags||[])].join(' ').toLowerCase(); if (!h.includes(q)) return false; }
+    return true;
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  renderListView(filtered);
+  renderGridView(filtered);
 }
+
 function renderListView(sermons) {
   const el = document.getElementById('sermonListView');
+  if (!workspaceId) { el.innerHTML = `<div class="empty"><svg viewBox="0 0 40 40"><path d="M8 4h18l10 10v22H8z"/><path d="M26 4v10h10"/><path d="M13 20h14M13 26h10"/></svg><p>No workspace connected</p><small>Set up your workspace above to start tracking sermons</small></div>`; return; }
   if (!sermons.length) { el.innerHTML = `<div class="empty"><svg viewBox="0 0 40 40"><path d="M8 4h18l10 10v22H8z"/><path d="M26 4v10h10"/><path d="M13 20h14M13 26h10"/></svg><p>No sermons yet</p><small>Click "Add sermon" to log your first message</small></div>`; return; }
   el.innerHTML = sermons.map(s => { const c=s.color||'#6c47ff',tags=(s.tags||[]).map(t=>`<span class="s-tag">${escHtml(t)}</span>`).join(''),badge=s.series?`<span class="s-badge" style="background:${c}18;color:${c}">${escHtml(s.series)}</span>`:''; return `<div class="s-row"><div class="s-dot" style="background:${c}"></div><div class="s-main"><div class="s-title">${escHtml(s.title||'Untitled')}</div><div class="s-meta">${s.date?`<span class="s-date">${formatDate(s.date)}</span>`:''}${s.scripture?`<span class="s-scripture">${escHtml(s.scripture)}</span>`:''}${badge}${s.speaker?`<span class="s-date">${escHtml(s.speaker)}</span>`:''}${tags}</div></div><div class="s-actions"><button class="row-btn" onclick="editSermon('${s.id}')" title="Edit"><svg viewBox="0 0 20 20"><path d="M14.7 3.3a1 1 0 0 1 1.4 1.4L6.8 14 3 15l1-3.8 9.7-7.9z"/></svg></button><button class="row-btn del" onclick="deleteSermon('${s.id}')" title="Delete"><svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4h4v2M7 6v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V6"/></svg></button></div></div>`; }).join('');
 }
+
 function renderGridView(sermons) {
   const el = document.getElementById('sermonGridView');
   if (!sermons.length) { el.innerHTML = ''; return; }
   el.innerHTML = sermons.map(s => { const c=s.color||'#6c47ff'; return `<div class="sg-card" style="border-top:3px solid ${c}"><div class="sg-top"><div class="sg-title">${escHtml(s.title||'Untitled')}</div><div class="sg-actions"><button class="row-btn" onclick="editSermon('${s.id}')"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 3.3a1 1 0 0 1 1.4 1.4L6.8 14 3 15l1-3.8 9.7-7.9z"/></svg></button><button class="row-btn del" onclick="deleteSermon('${s.id}')"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h12M8 6V4h4v2M7 6v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V6"/></svg></button></div></div>${s.date?`<div class="sg-date">${formatDate(s.date)}</div>`:''}${s.scripture?`<div class="sg-scripture">${escHtml(s.scripture)}</div>`:''}${s.notes?`<div class="sg-notes">${escHtml(s.notes)}</div>`:''}</div>`; }).join('');
 }
+
 function formatDate(d) { if(!d)return''; try{const[y,m,day]=d.split('-'),M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${M[parseInt(m)-1]} ${parseInt(day)}, ${y}`}catch{return d} }
-function toggleFilter(series) { activeFilter = activeFilter===series?null:series; renderTracker(); }
+function toggleFilter(series) { activeFilter = activeFilter===series?null:series; renderSermonList(); }
 function setView(v) { trackerView=v; document.getElementById('listViewBtn').classList.toggle('on',v==='list'); document.getElementById('gridViewBtn').classList.toggle('on',v==='grid'); document.getElementById('sermonListView').classList.toggle('hidden',v!=='list'); document.getElementById('sermonGridView').classList.toggle('vis',v==='grid'); }
+
+// ═══ FORM ═══
 function openSermonForm(prefill) {
   editingId = prefill?.id||null;
   document.getElementById('sformTitle').textContent = editingId?'Edit sermon':'Add sermon';
@@ -969,22 +1164,73 @@ function openSermonForm(prefill) {
   document.getElementById('sformOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('sf-title').focus(),100);
 }
+
 function closeSermonForm() { document.getElementById('sformOverlay').classList.remove('open'); editingId=null; }
 function selectColor(el) { document.querySelectorAll('.c-swatch').forEach(s=>s.classList.remove('sel')); el.classList.add('sel'); selectedColor=el.dataset.color; }
-function saveSermon() {
+
+async function saveSermon() {
+  if (!workspaceId) { openWsModal(false); return; }
   const title = document.getElementById('sf-title').value.trim();
   if (!title) { document.getElementById('sf-title').focus(); return; }
-  const sermons = loadSermons();
   const tags = document.getElementById('sf-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
-  const entry = { id:editingId||Date.now().toString(36)+Math.random().toString(36).slice(2), title, date:document.getElementById('sf-date').value, series:document.getElementById('sf-series').value.trim(), scripture:document.getElementById('sf-scripture').value.trim(), speaker:document.getElementById('sf-speaker').value.trim(), tags, notes:document.getElementById('sf-notes').value.trim(), color:selectedColor, createdAt:editingId?(sermons.find(s=>s.id===editingId)?.createdAt||Date.now()):Date.now() };
-  if (editingId){const idx=sermons.findIndex(s=>s.id===editingId);if(idx>-1)sermons[idx]=entry;}else sermons.push(entry);
-  saveSermons(sermons); closeSermonForm(); renderTracker();
+  const entry = { title, date: document.getElementById('sf-date').value, series: document.getElementById('sf-series').value.trim(), scripture: document.getElementById('sf-scripture').value.trim(), speaker: document.getElementById('sf-speaker').value.trim(), tags, notes: document.getElementById('sf-notes').value.trim(), color: selectedColor };
+  try {
+    if (editingId) { await updateSermon(editingId, entry); } else { await insertSermon(entry); }
+    closeSermonForm();
+    renderTracker();
+  } catch(e) { alert('Could not save: ' + e.message); }
 }
-function editSermon(id) { const s=loadSermons().find(s=>s.id===id); if(s) openSermonForm(s); }
-function deleteSermon(id) { if(!confirm('Delete this sermon?'))return; saveSermons(loadSermons().filter(s=>s.id!==id)); renderTracker(); }
+
+function editSermon(id) { const s=cachedSermons.find(s=>s.id===id); if(s) openSermonForm(s); }
+
+async function deleteSermon(id) {
+  if (!confirm('Delete this sermon?')) return;
+  try { await deleteSermonDb(id); renderTracker(); } catch(e) { alert('Could not delete: ' + e.message); }
+}
+
 document.getElementById('sformOverlay').addEventListener('click', e=>{if(e.target===e.currentTarget)closeSermonForm();});
-document.querySelector('.track-tab').addEventListener('click', ()=>renderTracker());
-renderTracker();
+
+// ═══ INIT ═══
+document.querySelector('.track-tab').addEventListener('click', async () => {
+  renderTracker();
+  if (workspaceId) await fetchSermons();
+  else openWsModal(false);
+});
+
+// Init on load if workspace saved
+if (workspaceId) { updateWsBar(); fetchSermons(); }
+else { renderTracker(); }
 </script>
+
+<!-- Workspace Modal -->
+<div class="ws-overlay" id="wsOverlay">
+  <div class="ws-modal">
+    <h2>Sermon Library workspace</h2>
+    <p>Your workspace code syncs your sermon library across all devices. Share it with your team so everyone sees the same library.</p>
+    <div class="ws-options">
+      <div class="ws-option selected" id="wsOptNew" onclick="selectWsOption('new')">
+        <div class="ws-option-title">✦ Create a new workspace</div>
+        <div class="ws-option-desc">Generate a new workspace for your church</div>
+      </div>
+      <div class="ws-option" id="wsOptExisting" onclick="selectWsOption('existing')">
+        <div class="ws-option-title">→ Join an existing workspace</div>
+        <div class="ws-option-desc">Enter a code your team already has</div>
+      </div>
+    </div>
+    <div class="ws-input-wrap" id="wsNewWrap">
+      <div class="ws-input-label">Church / workspace name</div>
+      <input class="ws-input" id="wsNameInput" type="text" placeholder="e.g. The Gathering" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:13px" maxlength="30">
+    </div>
+    <div class="ws-input-wrap" id="wsExistingWrap" style="display:none">
+      <div class="ws-input-label">Enter workspace code</div>
+      <input class="ws-input" id="wsCodeInput" type="text" placeholder="e.g. THE-GATHERING-4821" maxlength="30">
+    </div>
+    <div class="ws-footer">
+      <button class="btn-cancel" onclick="closeWsModal()">Cancel</button>
+      <button class="btn-save" onclick="confirmWorkspace()">Connect workspace</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
