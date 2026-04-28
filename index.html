@@ -750,7 +750,7 @@ async function callClaude(prompt, system) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, system, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 4000, system, messages: [{ role: 'user', content: prompt }] })
   });
   if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error ${res.status}`); }
   const data = await res.json();
