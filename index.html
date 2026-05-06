@@ -716,6 +716,37 @@ textarea.f-input{min-height:75px;resize:vertical}
   </div>
 </div>
 
+
+<!-- Workspace Modal -->
+<div class="ws-overlay" id="wsOverlay">
+  <div class="ws-modal">
+    <h2>Sermon Library workspace</h2>
+    <p>Your workspace code syncs your sermon library across all devices. Share it with your team so everyone sees the same library.</p>
+    <div class="ws-options">
+      <div class="ws-option selected" id="wsOptNew" onclick="selectWsOption('new')">
+        <div class="ws-option-title">✦ Create a new workspace</div>
+        <div class="ws-option-desc">Generate a new workspace for your church</div>
+      </div>
+      <div class="ws-option" id="wsOptExisting" onclick="selectWsOption('existing')">
+        <div class="ws-option-title">→ Join an existing workspace</div>
+        <div class="ws-option-desc">Enter a code your team already has</div>
+      </div>
+    </div>
+    <div class="ws-input-wrap" id="wsNewWrap">
+      <div class="ws-input-label">Church / workspace name</div>
+      <input class="ws-input" id="wsNameInput" type="text" placeholder="e.g. The Gathering" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:13px" maxlength="30">
+    </div>
+    <div class="ws-input-wrap" id="wsExistingWrap" style="display:none">
+      <div class="ws-input-label">Enter workspace code</div>
+      <input class="ws-input" id="wsCodeInput" type="text" placeholder="e.g. THE-GATHERING-4821" maxlength="30">
+    </div>
+    <div class="ws-footer">
+      <button class="btn-cancel" onclick="closeWsModal()">Cancel</button>
+      <button class="btn-save" onclick="confirmWorkspace()">Connect workspace</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── PROXY CONFIG ─────────────────────────────────────────────
 // Replace this URL with your Cloudflare Worker URL after deploying
@@ -1201,36 +1232,5 @@ document.querySelector('.track-tab').addEventListener('click', async () => {
 if (workspaceId) { updateWsBar(); fetchSermons(); }
 else { renderTracker(); }
 </script>
-
-<!-- Workspace Modal -->
-<div class="ws-overlay" id="wsOverlay">
-  <div class="ws-modal">
-    <h2>Sermon Library workspace</h2>
-    <p>Your workspace code syncs your sermon library across all devices. Share it with your team so everyone sees the same library.</p>
-    <div class="ws-options">
-      <div class="ws-option selected" id="wsOptNew" onclick="selectWsOption('new')">
-        <div class="ws-option-title">✦ Create a new workspace</div>
-        <div class="ws-option-desc">Generate a new workspace for your church</div>
-      </div>
-      <div class="ws-option" id="wsOptExisting" onclick="selectWsOption('existing')">
-        <div class="ws-option-title">→ Join an existing workspace</div>
-        <div class="ws-option-desc">Enter a code your team already has</div>
-      </div>
-    </div>
-    <div class="ws-input-wrap" id="wsNewWrap">
-      <div class="ws-input-label">Church / workspace name</div>
-      <input class="ws-input" id="wsNameInput" type="text" placeholder="e.g. The Gathering" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:13px" maxlength="30">
-    </div>
-    <div class="ws-input-wrap" id="wsExistingWrap" style="display:none">
-      <div class="ws-input-label">Enter workspace code</div>
-      <input class="ws-input" id="wsCodeInput" type="text" placeholder="e.g. THE-GATHERING-4821" maxlength="30">
-    </div>
-    <div class="ws-footer">
-      <button class="btn-cancel" onclick="closeWsModal()">Cancel</button>
-      <button class="btn-save" onclick="confirmWorkspace()">Connect workspace</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
