@@ -832,7 +832,7 @@ async function callClaude(prompt, system) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 4000, system, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 6000, system, messages: [{ role: 'user', content: prompt }] })
   });
   if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error ${res.status}`); }
   const data = await res.json();
@@ -856,9 +856,9 @@ async function generateClips() {
   setLoading('clip', true);
   const system = `You are an expert church communications writer who deeply understands theology and pastoral content. You write with clarity, depth, and faithfulness to the preacher's actual message. Return ONLY valid JSON, no markdown or explanation.`;
   const descField = wantDesc ? `"description": "Write a 180-220 word YouTube/website description. Open with the core tension or question the sermon addresses. Name the specific Bible passage. Explain what the listener will discover — specific to this sermon's teaching. Close with a compelling invitation. Third person, present tense. No phrases like 'In this powerful message'.",` : '';
-  const chField = wantCh ? `"chapters": "Array of chapter objects from the transcript. SRT timestamps look like '00:04:49:12'. Format time as M:SS or H:MM:SS. Titles 4-8 words capturing the specific teaching point. First must be 0:00. Format: [{time:'0:00',title:'...'}]",` : '';
+  const chField = wantCh ? `"chapters": "Read the ENTIRE transcript from start to finish. Create a chapter for every major section shift — aim for one chapter every 4-8 minutes. SRT timestamps look like '00:04:49:12' — extract the real time for EACH section, do not estimate. Format as M:SS or H:MM:SS. First chapter must be 0:00. Titles must be 4-8 words that describe the SPECIFIC content taught at that point — not 'Introduction' or 'Conclusion'. The last chapter must reflect the final section of the sermon. Return: [{time:'0:00',title:'specific title'}]",` : '';
 
-  const prompt = `Analyze this sermon transcript and produce the requested content. Extract the actual theological argument and specific points.
+  const prompt = `Read this ENTIRE sermon transcript carefully from start to finish before generating any output. Do not begin writing until you have read to the end.
 
 Signals: ${signals.join(', ')} | Platforms: ${platforms.join(', ')} | Duration: ${duration} | Clips: ${count}
 
@@ -869,10 +869,10 @@ Return JSON:
   "clips": [{"title":"5-8 word title","quote":"verbatim sermon text","signal":"emotional_peak|key_phrase|quotable|rhetorical_question","why":"one sentence","platforms":["ig","tiktok","ytshorts"],"hook":"hook under 15 words"}]
 }
 
-For chapters: use real SRT timestamps from the transcript. Chapter titles must reflect specific content, not generic labels.
+IMPORTANT: Chapters must span the FULL sermon from 0:00 to the final timestamp. Clips must be drawn from across the entire sermon, not just the opening. Description must reflect the complete arc of the message.
 
-Transcript (first 14000 chars):
-${transcript.slice(0, 14000)}`;
+Full transcript:
+${transcript.slice(0, 30000)}`;
 
   try {
     const data = await callClaude(prompt, system);
@@ -947,14 +947,19 @@ async function generateDevot() {
   const cg = {instagram:'Instagram caption (under 2200 chars, 5–10 hashtags, line breaks)',facebook:'Facebook post (under 500 words, conversational)',x:'X/Twitter thread (3–5 tweets, each under 280 chars, numbered 1/3 etc)'};
   setLoading('devot', true);
   const system = `You are a gifted devotional writer and church communications expert with theological depth and pastoral warmth. Read transcripts carefully to extract the actual teaching. Return ONLY valid JSON, no markdown.`;
-  const prompt = `Transform this sermon into three content pieces.
+  const prompt = `Read this ENTIRE sermon transcript from start to finish before forming any title, theme, or output. Do not begin writing until you have read to the end — the title and central idea must reflect the complete arc of the message, not just the opening.
 
 Style: ${style} | Length: ${lw[length]} words | Caption: ${cg[platform]}
 
-Return JSON: {"devotional":"full text","caption":"full ${platform} caption","email":{"subject":"subject line under 60 chars","body":"200–280 word congregation email"}}
+Requirements:
+- Devotional title must emerge from the WHOLE sermon's central theme, not the first few minutes
+- Include specific scriptures, illustrations, and turning points from across the sermon
+- The devotional should feel like it could only have been written from THIS sermon, not any other
 
-Transcript (first 14000 chars):
-${transcript.slice(0, 14000)}`;
+Return JSON: {"devotional":"full devotional with title as first line","caption":"full ${platform} caption","email":{"subject":"subject line under 60 chars","body":"200–280 word congregation email"}}
+
+Full transcript:
+${transcript.slice(0, 30000)}`;
   try {
     const data = await callClaude(prompt, system);
     document.getElementById('devotTextOut').textContent = data.devotional || '';
