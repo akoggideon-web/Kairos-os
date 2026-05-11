@@ -754,7 +754,7 @@ textarea.f-input{min-height:75px;resize:vertical}
 </div>
 
 <script>
-// ─── PROXY CONFIG ─────────────────────────────────────────────
+// --- PROXY CONFIG ---------------------------------------------
 // Replace this URL with your Cloudflare Worker URL after deploying
 const PROXY_URL = 'https://kairos-proxy.akoggideon.workers.dev/';
 
@@ -841,9 +841,7 @@ async function readFile(file, tagId, contentId) {
         const c = await page.getTextContent();
         pages.push(c.items.map(item => item.str).join(' '));
       }
-      text = pages.join('
-
-');
+      text = pages.join('\n\n');
     } else if (ext === '.docx') {
       const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
       text = result.value;
@@ -896,7 +894,7 @@ async function callClaude(prompt, system) {
   const end = clean.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('No JSON object found in response. Try again.');
   clean = clean.slice(start, end + 1);
-  // Attempt parse — if it fails, try to salvage by escaping unescaped control chars
+  // Attempt parse -- if it fails, try to salvage by escaping unescaped control chars
   try {
     return JSON.parse(clean);
   } catch(e1) {
@@ -928,8 +926,8 @@ async function generateClips() {
   setLoading('clip', true);
   const system = `You are an expert church communications writer who deeply understands theology and pastoral content. You write with clarity, depth, and faithfulness to the preacher's actual message. Return ONLY a single valid JSON object. No markdown, no explanation, no text before or after the JSON. All string values must use escaped quotes and no unescaped newlines inside strings.`;
   const titleField = wantTitle ? `"youtube_title": "Write 3 YouTube title options for this sermon. Each must be under 70 characters, front-load the most compelling hook or tension, be specific to THIS sermon's content, and optimised for search. Avoid clickbait. Format as an array of 3 strings.",` : '';
-  const descField = wantDesc ? `"description": "Write a 180-220 word YouTube/website description. Open with the core tension or question the sermon addresses. Name the specific Bible passage. Explain what the listener will discover — specific to this sermon's teaching. Close with a compelling invitation. Third person, present tense. No phrases like 'In this powerful message'.",` : '';
-  const chField = wantCh ? `"chapters": "Read the ENTIRE transcript from start to finish. Create a chapter for every major section shift — aim for one chapter every 4-8 minutes. SRT timestamps look like '00:04:49:12' — extract the real time for EACH section, do not estimate. Format as M:SS or H:MM:SS. First chapter must be 0:00. Titles must be 4-8 words that describe the SPECIFIC content taught at that point — not 'Introduction' or 'Conclusion'. The last chapter must reflect the final section of the sermon. Return: [{time:'0:00',title:'specific title'}]",` : '';
+  const descField = wantDesc ? `"description": "Write a 180-220 word YouTube/website description. Open with the core tension or question the sermon addresses. Name the specific Bible passage. Explain what the listener will discover -- specific to this sermon's teaching. Close with a compelling invitation. Third person, present tense. No phrases like 'In this powerful message'.",` : '';
+  const chField = wantCh ? `"chapters": "Read the ENTIRE transcript from start to finish. Create a chapter for every major section shift -- aim for one chapter every 4-8 minutes. SRT timestamps look like '00:04:49:12' -- extract the real time for EACH section, do not estimate. Format as M:SS or H:MM:SS. First chapter must be 0:00. Titles must be 4-8 words that describe the SPECIFIC content taught at that point -- not 'Introduction' or 'Conclusion'. The last chapter must reflect the final section of the sermon. Return: [{time:'0:00',title:'specific title'}]",` : '';
 
   const prompt = `Read this ENTIRE sermon transcript carefully from start to finish before generating any output. Do not begin writing until you have read to the end.
 
@@ -1034,11 +1032,11 @@ async function generateDevot() {
   const style = document.querySelector('#devotStyleRow .chip.on')?.dataset.value || 'reflective';
   const length = document.getElementById('devotLength').value;
   const platform = document.querySelector('#captionPlatRow .chip.on')?.dataset.value || 'instagram';
-  const lw = {short:'150–200',medium:'250–350',long:'400–500'};
-  const cg = {instagram:'Instagram caption (under 2200 chars, 5–10 hashtags, line breaks)',facebook:'Facebook post (under 500 words, conversational)',x:'X/Twitter thread (3–5 tweets, each under 280 chars, numbered 1/3 etc)'};
+  const lw = {short:'150-200',medium:'250-350',long:'400-500'};
+  const cg = {instagram:'Instagram caption (under 2200 chars, 5-10 hashtags, line breaks)',facebook:'Facebook post (under 500 words, conversational)',x:'X/Twitter thread (3-5 tweets, each under 280 chars, numbered 1/3 etc)'};
   setLoading('devot', true);
   const system = `You are a gifted devotional writer and church communications expert with theological depth and pastoral warmth. Read transcripts carefully to extract the actual teaching. Return ONLY a single valid JSON object. No markdown, no explanation, no text before or after the JSON. Use \n for line breaks inside string values, never literal newlines.`;
-  const prompt = `Read this ENTIRE sermon transcript from start to finish before forming any title, theme, or output. Do not begin writing until you have read to the end — the title and central idea must reflect the complete arc of the message, not just the opening.
+  const prompt = `Read this ENTIRE sermon transcript from start to finish before forming any title, theme, or output. Do not begin writing until you have read to the end -- the title and central idea must reflect the complete arc of the message, not just the opening.
 
 Style: ${style} | Length: ${lw[length]} words | Caption: ${cg[platform]}
 
@@ -1047,7 +1045,7 @@ Requirements:
 - Include specific scriptures, illustrations, and turning points from across the sermon
 - The devotional should feel like it could only have been written from THIS sermon, not any other
 
-Return JSON: {"devotional":"full devotional with title as first line","caption":"full ${platform} caption","email":{"subject":"subject line under 60 chars","body":"200–280 word congregation email"}}
+Return JSON: {"devotional":"full devotional with title as first line","caption":"full ${platform} caption","email":{"subject":"subject line under 60 chars","body":"200-280 word congregation email"}}
 
 Full transcript:
 ${transcript.slice(0, 72000)}`;
@@ -1098,12 +1096,12 @@ function hideErr(barId) { document.getElementById(barId).classList.remove('vis')
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function esc(s) { return String(s||'').replace(/"/g,'&quot;'); }
 
-// ═══ SUPABASE CONFIG ═══
+// === SUPABASE CONFIG ===
 const SB_URL = 'https://lcgjiutmajlumdvyohlm.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjZ2ppdXRtYWpsdW1kdnlvaGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjY2ODEsImV4cCI6MjA5MjkwMjY4MX0.h1vBZZ6EggLoMt_NNz5ffDoqCt-IUWW7il0Yil6TG5Y';
 const SB_HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
 
-// ═══ WORKSPACE STATE ═══
+// === WORKSPACE STATE ===
 let workspaceId = localStorage.getItem('kairos_workspace') || '';
 let cachedSermons = [];
 let trackerView = 'list', activeFilter = null, editingId = null, selectedColor = '#6c47ff';
@@ -1115,7 +1113,7 @@ function generateWorkspaceId(name) {
   return `${slug}-${rand}`;
 }
 
-// ═══ WORKSPACE MODAL ═══
+// === WORKSPACE MODAL ===
 function openWsModal(allowCancel) {
   document.getElementById('wsOverlay').classList.add('open');
   if (allowCancel) {
@@ -1155,7 +1153,7 @@ async function confirmWorkspace() {
 document.getElementById('wsOverlay').addEventListener('click', e => { if (e.target === e.currentTarget && document.querySelector('.ws-modal .btn-cancel').style.display !== 'none') closeWsModal(); });
 
 function updateWsBar() {
-  document.getElementById('wsCodeDisplay').textContent = workspaceId || '—';
+  document.getElementById('wsCodeDisplay').textContent = workspaceId || '--';
 }
 
 function setWsStatus(status) {
@@ -1165,7 +1163,7 @@ function setWsStatus(status) {
   txt.textContent = status === 'synced' ? 'Synced' : status === 'syncing' ? 'Syncing...' : status === 'error' ? 'Sync error' : 'Not connected';
 }
 
-// ═══ SUPABASE CRUD ═══
+// === SUPABASE CRUD ===
 async function fetchSermons() {
   if (!workspaceId) return;
   setWsStatus('syncing');
@@ -1216,7 +1214,7 @@ async function deleteSermonDb(id) {
   setWsStatus('synced');
 }
 
-// ═══ RENDER ═══
+// === RENDER ===
 function getSeriesMap() { const m = {}; cachedSermons.forEach(s => { if (s.series && s.color) m[s.series] = s.color; }); return m; }
 
 function renderTracker() {
@@ -1276,7 +1274,7 @@ function formatDate(d) { if(!d)return''; try{const[y,m,day]=d.split('-'),M=['Jan
 function toggleFilter(series) { activeFilter = activeFilter===series?null:series; renderSermonList(); }
 function setView(v) { trackerView=v; document.getElementById('listViewBtn').classList.toggle('on',v==='list'); document.getElementById('gridViewBtn').classList.toggle('on',v==='grid'); document.getElementById('sermonListView').classList.toggle('hidden',v!=='list'); document.getElementById('sermonGridView').classList.toggle('vis',v==='grid'); }
 
-// ═══ FORM ═══
+// === FORM ===
 function openSermonForm(prefill) {
   editingId = prefill?.id||null;
   document.getElementById('sformTitle').textContent = editingId?'Edit sermon':'Add sermon';
@@ -1318,7 +1316,7 @@ async function deleteSermon(id) {
 
 document.getElementById('sformOverlay').addEventListener('click', e=>{if(e.target===e.currentTarget)closeSermonForm();});
 
-// ═══ INIT ═══
+// === INIT ===
 document.querySelector('.track-tab').addEventListener('click', async () => {
   renderTracker();
   if (workspaceId) await fetchSermons();
