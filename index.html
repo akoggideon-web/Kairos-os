@@ -459,6 +459,7 @@ textarea.f-input{min-height:75px;resize:vertical}
             <div class="dvdr"></div>
             <div class="slabel">Also generate</div>
             <div class="chip-row">
+              <button class="chip on" id="chkTitle" data-value="title" onclick="this.classList.toggle('on')"><span class="chip-dot"></span>YouTube title</button>
               <button class="chip on" id="chkDescription" data-value="description" onclick="this.classList.toggle('on')"><span class="chip-dot"></span>Description</button>
               <button class="chip on" id="chkChapters" data-value="chapters" onclick="this.classList.toggle('on')"><span class="chip-dot"></span>YouTube chapters</button>
             </div>
@@ -850,11 +851,13 @@ async function generateClips() {
   const platforms = Array.from(document.querySelectorAll('#sec-clip .chip.on[data-value]')).map(b=>b.dataset.value).filter(v=>['ig','tiktok','ytshorts'].includes(v));
   const duration = document.getElementById('clipDur').value;
   const count = document.getElementById('clipCount').value;
+  const wantTitle = document.getElementById('chkTitle').classList.contains('on');
   const wantDesc = document.getElementById('chkDescription').classList.contains('on');
   const wantCh = document.getElementById('chkChapters').classList.contains('on');
 
   setLoading('clip', true);
   const system = `You are an expert church communications writer who deeply understands theology and pastoral content. You write with clarity, depth, and faithfulness to the preacher's actual message. Return ONLY valid JSON, no markdown or explanation.`;
+  const titleField = wantTitle ? `"youtube_title": "Write 3 YouTube title options for this sermon. Each must be under 70 characters, front-load the most compelling hook or tension, be specific to THIS sermon's content, and optimised for search. Avoid clickbait. Format as an array of 3 strings.",` : '';
   const descField = wantDesc ? `"description": "Write a 180-220 word YouTube/website description. Open with the core tension or question the sermon addresses. Name the specific Bible passage. Explain what the listener will discover — specific to this sermon's teaching. Close with a compelling invitation. Third person, present tense. No phrases like 'In this powerful message'.",` : '';
   const chField = wantCh ? `"chapters": "Read the ENTIRE transcript from start to finish. Create a chapter for every major section shift — aim for one chapter every 4-8 minutes. SRT timestamps look like '00:04:49:12' — extract the real time for EACH section, do not estimate. Format as M:SS or H:MM:SS. First chapter must be 0:00. Titles must be 4-8 words that describe the SPECIFIC content taught at that point — not 'Introduction' or 'Conclusion'. The last chapter must reflect the final section of the sermon. Return: [{time:'0:00',title:'specific title'}]",` : '';
 
@@ -864,6 +867,7 @@ Signals: ${signals.join(', ')} | Platforms: ${platforms.join(', ')} | Duration: 
 
 Return JSON:
 {
+  ${titleField}
   ${descField}
   ${chField}
   "clips": [{"title":"5-8 word title","quote":"verbatim sermon text","signal":"emotional_peak|key_phrase|quotable|rhetorical_question","why":"one sentence","platforms":["ig","tiktok","ytshorts"],"hook":"hook under 15 words"}]
@@ -872,22 +876,23 @@ Return JSON:
 IMPORTANT: Chapters must span the FULL sermon from 0:00 to the final timestamp. Clips must be drawn from across the entire sermon, not just the opening. Description must reflect the complete arc of the message.
 
 Full transcript:
-${transcript.slice(0, 30000)}`;
+${transcript.slice(0, 72000)}`;
 
   try {
     const data = await callClaude(prompt, system);
-    renderClipResults(data, wantDesc, wantCh);
+    renderClipResults(data, wantTitle, wantDesc, wantCh);
   } catch(e) {
     showErr('clipErr', 'clipErrMsg', e.message || 'Something went wrong. Check your API key.');
     document.getElementById('clipResults').classList.remove('vis');
   } finally { setLoading('clip', false); }
 }
 
-function renderClipResults(data, wantDesc, wantCh) {
+function renderClipResults(data, wantTitle, wantDesc, wantCh) {
   const tabs = document.getElementById('clipResultTabs');
   const panes = document.getElementById('clipTabPanes');
   tabs.innerHTML = ''; panes.innerHTML = '';
   const items = [];
+  if (wantTitle && data.youtube_title?.length) items.push({ id: 'title', label: 'YouTube titles' });
   if (wantDesc && data.description) items.push({ id: 'desc', label: 'Description' });
   if (wantCh && data.chapters?.length) items.push({ id: 'chapters', label: 'YouTube chapters' });
   if (data.clips?.length) items.push({ id: 'clips', label: `Clips (${data.clips.length})` });
@@ -900,7 +905,21 @@ function renderClipResults(data, wantDesc, wantCh) {
     const pane = document.createElement('div');
     pane.className = 'rpane' + (i === 0 ? ' active' : '');
     pane.id = 'cpane-' + item.id;
-    if (item.id === 'desc') {
+    if (item.id === 'title') {
+      const titles = data.youtube_title || [];
+      const rows = titles.map((t, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+            <span style="font-size:11px;font-weight:700;color:var(--purple);background:var(--purple3);border-radius:100px;padding:2px 8px;flex-shrink:0;">Option ${i+1}</span>
+            <span style="font-size:14px;font-weight:500;color:var(--text);letter-spacing:-.01em;">${escHtml(t)}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span style="font-size:11px;color:${t.length > 70 ? 'var(--red)' : 'var(--text3)'};">${t.length}/70</span>
+            <button class="copy-sm" onclick="navigator.clipboard.writeText('${esc(t)}').then(()=>{this.textContent='Copied!';this.classList.add('ok');setTimeout(()=>{this.textContent='Copy';this.classList.remove('ok')},2000)})" >Copy</button>
+          </div>
+        </div>`).join('');
+      pane.innerHTML = `<div class="obox" style="background:transparent;border:none;padding:0">${rows}</div>`;
+    } else if (item.id === 'desc') {
       pane.innerHTML = `<div class="obox"><div class="otext" id="clipDescText">${escHtml(data.description)}</div><div class="ofoot"><span class="ometa">${(data.description||'').split(/\s+/).filter(Boolean).length} words</span><button class="copy-btn" onclick="doCopy(this,'clipDescText')"><svg viewBox="0 0 20 20"><rect x="8" y="8" width="10" height="10" rx="2"/><path d="M4 12H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"/></svg>Copy</button></div></div>`;
     } else if (item.id === 'chapters') {
       const rows = (data.chapters||[]).map(c => `<li><span class="ch-time">${escHtml(c.time)}</span>${escHtml(c.title)}</li>`).join('');
@@ -959,7 +978,7 @@ Requirements:
 Return JSON: {"devotional":"full devotional with title as first line","caption":"full ${platform} caption","email":{"subject":"subject line under 60 chars","body":"200–280 word congregation email"}}
 
 Full transcript:
-${transcript.slice(0, 30000)}`;
+${transcript.slice(0, 72000)}`;
   try {
     const data = await callClaude(prompt, system);
     document.getElementById('devotTextOut').textContent = data.devotional || '';
