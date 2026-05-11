@@ -351,9 +351,6 @@ textarea.f-input{min-height:75px;resize:vertical}
 .ws-input::placeholder{text-transform:none;letter-spacing:0;font-weight:400;color:var(--text3)}
 .ws-footer{display:flex;gap:8px;justify-content:flex-end}
 </style>
-  <!-- PDF + DOCX parsing -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
@@ -425,9 +422,9 @@ textarea.f-input{min-height:75px;resize:vertical}
             <div id="clip-upload-area" style="display:none">
               <div class="dropzone vis" id="clipDz" onclick="document.getElementById('clipFile').click()" ondragover="doDragOver(event,'clipDz')" ondragleave="doDragLeave('clipDz')" ondrop="doDrop(event,'clipDz','clipFilename','clipContent')">
                 <div class="dz-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-                <p><strong>Drop file here</strong></p><p>or click to browse</p>
-                <small>.txt · .srt · .vtt · .sbv · .pdf · .docx</small>
-                <input type="file" id="clipFile" accept=".txt,.srt,.pdf,.docx,.vtt,.sbv" onchange="fileSelect(event,'clipFilename','clipContent')">
+                <p><strong>Drop .txt or .srt here</strong></p><p>or click to browse</p>
+                <small>Plain text and SRT caption files</small>
+                <input type="file" id="clipFile" accept=".txt,.srt" onchange="fileSelect(event,'clipFilename','clipContent')">
               </div>
               <div class="file-tag" id="clipFilename">
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4z"/><polyline points="14 2 14 8 8 8"/></svg>
@@ -538,9 +535,9 @@ textarea.f-input{min-height:75px;resize:vertical}
             <div id="devot-upload-area" style="display:none">
               <div class="dropzone vis" id="devotDz" onclick="document.getElementById('devotFile').click()" ondragover="doDragOver(event,'devotDz')" ondragleave="doDragLeave('devotDz')" ondrop="doDrop(event,'devotDz','devotFilename','devotContent')">
                 <div class="dz-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-                <p><strong>Drop file here</strong></p><p>or click to browse</p>
-                <small>.txt · .srt · .vtt · .sbv · .pdf · .docx</small>
-                <input type="file" id="devotFile" accept=".txt,.srt,.pdf,.docx,.vtt,.sbv" onchange="fileSelect(event,'devotFilename','devotContent')">
+                <p><strong>Drop .txt or .srt here</strong></p><p>or click to browse</p>
+                <small>Plain text and SRT caption files</small>
+                <input type="file" id="devotFile" accept=".txt,.srt" onchange="fileSelect(event,'devotFilename','devotContent')">
               </div>
               <div class="file-tag" id="devotFilename">
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4z"/><polyline points="14 2 14 8 8 8"/></svg>
@@ -802,44 +799,14 @@ function doDragOver(e, id) { e.preventDefault(); document.getElementById(id).cla
 function doDragLeave(id) { document.getElementById(id).classList.remove('over'); }
 function doDrop(e, dzId, tagId, contentId) { e.preventDefault(); doDragLeave(dzId); const f = e.dataTransfer.files[0]; if (f) readFile(f, tagId, contentId); }
 function fileSelect(e, tagId, contentId) { const f = e.target.files[0]; if (f) readFile(f, tagId, contentId); }
-async function readFile(file, tagId, contentId) {
-  const allowed = ['.txt','.srt','.vtt','.sbv','.pdf','.docx'];
-  const ext = '.' + file.name.split('.').pop().toLowerCase();
-  if (!allowed.includes(ext)) {
-    alert('Unsupported file type. Please upload .txt, .srt, .vtt, .sbv, .pdf, or .docx\n\nYou uploaded: ' + file.name);
-    return;
-  }
-  const fnameEl = document.getElementById(tagId === 'clipFilename' ? 'clipFname' : 'devotFname');
-  fnameEl.textContent = 'Reading ' + file.name + '…';
-  document.getElementById(tagId).classList.add('vis');
-  try {
-    let text = '';
-    if (['.txt','.srt','.vtt','.sbv'].includes(ext)) {
-      text = await file.text();
-    } else if (ext === '.pdf') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-      const pages = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const c = await page.getTextContent();
-        pages.push(c.items.map(item => item.str).join(' '));
-      }
-      text = pages.join('
-
-');
-    } else if (ext === '.docx') {
-      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-      text = result.value;
-    }
-    if (!text.trim()) throw new Error('No text could be extracted from this file.');
-    document.getElementById(contentId).value = text;
-    fnameEl.textContent = file.name;
-  } catch(err) {
-    fnameEl.textContent = 'Error reading file';
-    document.getElementById(tagId).classList.remove('vis');
-    alert('Could not read file: ' + err.message);
-  }
+function readFile(file, tagId, contentId) {
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById(contentId).value = e.target.result;
+    document.getElementById(tagId === 'clipFilename' ? 'clipFname' : 'devotFname').textContent = file.name;
+    document.getElementById(tagId).classList.add('vis');
+  };
+  r.readAsText(file);
 }
 function rmFile(tagId, contentId, inputId) { document.getElementById(contentId).value = ''; document.getElementById(tagId).classList.remove('vis'); document.getElementById(inputId).value = ''; }
 function getTranscript(tool) {
@@ -866,31 +833,12 @@ async function callClaude(prompt, system) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 8000, system, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 6000, system, messages: [{ role: 'user', content: prompt }] })
   });
   if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || `API error ${res.status}`); }
   const data = await res.json();
   const raw = data.content[0]?.text || '';
-  // Clean markdown fences
-  let clean = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-  // Find the outermost JSON object
-  const start = clean.indexOf('{');
-  const end = clean.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('No JSON object found in response. Try again.');
-  clean = clean.slice(start, end + 1);
-  // Attempt parse — if it fails, try to salvage by escaping unescaped control chars
-  try {
-    return JSON.parse(clean);
-  } catch(e1) {
-    // Remove literal newlines/tabs inside string values
-    const salvaged = clean.replace(/(?<=":.*?)\n(?=.*?")/gs, ' ').replace(/[\x00-\x1F\x7F]/g, ' ');
-    try {
-      return JSON.parse(salvaged);
-    } catch(e2) {
-      // Last resort: extract what we can field by field
-      throw new Error('Response was too long or contained formatting that broke the JSON. Try reducing Max Clips or deselecting some outputs.');
-    }
-  }
+  return JSON.parse(raw.replace(/```json\s*/g, '').replace(/```/g, '').trim());
 }
 
 async function generateClips() {
@@ -908,7 +856,7 @@ async function generateClips() {
   const wantCh = document.getElementById('chkChapters').classList.contains('on');
 
   setLoading('clip', true);
-  const system = `You are an expert church communications writer who deeply understands theology and pastoral content. You write with clarity, depth, and faithfulness to the preacher's actual message. Return ONLY a single valid JSON object. No markdown, no explanation, no text before or after the JSON. All string values must use escaped quotes and no unescaped newlines inside strings.`;
+  const system = `You are an expert church communications writer who deeply understands theology and pastoral content. You write with clarity, depth, and faithfulness to the preacher's actual message. Return ONLY valid JSON, no markdown or explanation.`;
   const titleField = wantTitle ? `"youtube_title": "Write 3 YouTube title options for this sermon. Each must be under 70 characters, front-load the most compelling hook or tension, be specific to THIS sermon's content, and optimised for search. Avoid clickbait. Format as an array of 3 strings.",` : '';
   const descField = wantDesc ? `"description": "Write a 180-220 word YouTube/website description. Open with the core tension or question the sermon addresses. Name the specific Bible passage. Explain what the listener will discover — specific to this sermon's teaching. Close with a compelling invitation. Third person, present tense. No phrases like 'In this powerful message'.",` : '';
   const chField = wantCh ? `"chapters": "Read the ENTIRE transcript from start to finish. Create a chapter for every major section shift — aim for one chapter every 4-8 minutes. SRT timestamps look like '00:04:49:12' — extract the real time for EACH section, do not estimate. Format as M:SS or H:MM:SS. First chapter must be 0:00. Titles must be 4-8 words that describe the SPECIFIC content taught at that point — not 'Introduction' or 'Conclusion'. The last chapter must reflect the final section of the sermon. Return: [{time:'0:00',title:'specific title'}]",` : '';
@@ -1017,7 +965,7 @@ async function generateDevot() {
   const lw = {short:'150–200',medium:'250–350',long:'400–500'};
   const cg = {instagram:'Instagram caption (under 2200 chars, 5–10 hashtags, line breaks)',facebook:'Facebook post (under 500 words, conversational)',x:'X/Twitter thread (3–5 tweets, each under 280 chars, numbered 1/3 etc)'};
   setLoading('devot', true);
-  const system = `You are a gifted devotional writer and church communications expert with theological depth and pastoral warmth. Read transcripts carefully to extract the actual teaching. Return ONLY a single valid JSON object. No markdown, no explanation, no text before or after the JSON. Use \n for line breaks inside string values, never literal newlines.`;
+  const system = `You are a gifted devotional writer and church communications expert with theological depth and pastoral warmth. Read transcripts carefully to extract the actual teaching. Return ONLY valid JSON, no markdown.`;
   const prompt = `Read this ENTIRE sermon transcript from start to finish before forming any title, theme, or output. Do not begin writing until you have read to the end — the title and central idea must reflect the complete arc of the message, not just the opening.
 
 Style: ${style} | Length: ${lw[length]} words | Caption: ${cg[platform]}
